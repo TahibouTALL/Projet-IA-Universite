@@ -1,0 +1,50 @@
+# Déploiement complet : base de données + migrations + application
+#   cp .env.example .env   puis renseigner les valeurs
+#   docker compose up -d --build
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: campus
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-campus}
+      POSTGRES_DB: campus
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U campus"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Applique les migrations et crée le compte administrateur au premier lancement
+  migrate:
+    build:
+      context: .
+      target: builder
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://campus:${POSTGRES_PASSWORD:-campus}@db:5432/campus
+    command: sh -c "npx tsx src/db/migrate.ts && npx tsx src/db/seed.ts --admin-only"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://campus:${POSTGRES_PASSWORD:-campus}@db:5432/campus
+      UPLOAD_DIR: /data/storage
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - uploads:/data/storage
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
+  uploads:
