@@ -12,6 +12,7 @@ export type DocRow = {
   kind: DocKind;
   source: string;
   status: string;
+  aiOnly?: boolean;
   createdAt: Date;
   uploaderName?: string;
   courseTitle?: string;
@@ -44,8 +45,7 @@ export function DocList({ docs, showCourse = false }: { docs: DocRow[]; showCour
             </div>
           </div>
           <Badge tone={d.kind === "CORRECTION" || d.kind === "EXAM" ? "accent" : "neutral"}>{DOC_KIND_LABELS[d.kind]}</Badge>
-          {d.status === "PENDING" && <Badge tone="warn">En attente</Badge>}
-          {d.status === "REJECTED" && <Badge tone="danger">Refusé</Badge>}
+          {d.aiOnly && <Badge tone="accent">Base IA</Badge>}
           <a href={`/api/files/${d.id}?download`} className="hidden text-xs text-muted hover:text-ink sm:inline">
             Télécharger
           </a>

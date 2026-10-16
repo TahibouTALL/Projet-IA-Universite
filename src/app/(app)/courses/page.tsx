@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { asc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { requireUser, visibleCourses } from "@/lib/access";
+import { requireUser, teacherNames, visibleCourses } from "@/lib/access";
 import { createCourse } from "@/app/actions/courses";
 import { ActionForm, SubmitButton } from "@/components/forms";
-import { Card, Empty, Field, Input, PageHeader, Section, Select, Textarea } from "@/components/ui";
+import { Card, Empty, Field, Input, Label, PageHeader, Section, Select, Textarea } from "@/components/ui";
 
 export const metadata = { title: "Cours" };
 
@@ -15,10 +15,15 @@ export default async function CoursesPage() {
   const courses = await visibleCourses(user);
   const canCreate = user.role === "TEACHER" || user.role === "ADMIN";
   const classes = canCreate ? await db.select().from(schema.classGroups).orderBy(asc(schema.classGroups.name)) : [];
-  const teachers =
-    user.role === "ADMIN"
-      ? await db.select({ id: schema.users.id, name: schema.users.name }).from(schema.users).where(eq(schema.users.role, "TEACHER"))
-      : [];
+  const teachers = canCreate
+    ? (
+        await db
+          .select({ id: schema.users.id, name: schema.users.name })
+          .from(schema.users)
+          .where(eq(schema.users.role, "TEACHER"))
+          .orderBy(asc(schema.users.name))
+      ).filter((t) => t.id !== user.id)
+    : [];
 
   return (
     <>
@@ -38,7 +43,7 @@ export default async function CoursesPage() {
                   <div className="mt-1 text-lg font-semibold leading-snug">{c.title}</div>
                   {c.description && <p className="mt-2 line-clamp-2 text-sm text-muted">{c.description}</p>}
                   <div className="mt-4 text-sm text-muted">
-                    {c.teacher.name} · {c.classGroup.name}
+                    {teacherNames(c)} · {c.classGroup.name}
                   </div>
                 </div>
               </Card>
@@ -83,27 +88,23 @@ export default async function CoursesPage() {
                       ))}
                     </Select>
                   </Field>
-                  {user.role === "ADMIN" ? (
-                    <Field label="Enseignant">
-                      <Select name="teacherId" defaultValue="">
-                        <option value="">Moi (administration)</option>
-                        {teachers.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.name}
-                          </option>
-                        ))}
-                      </Select>
-                    </Field>
-                  ) : (
-                    <Field label="Couleur">
-                      <ColorPicker />
-                    </Field>
-                  )}
-                </div>
-                {user.role === "ADMIN" && (
                   <Field label="Couleur">
                     <ColorPicker />
                   </Field>
+                </div>
+                {teachers.length > 0 && (
+                  <div>
+                    <Label hint={user.role === "ADMIN" ? "(sinon tu en es l'enseignant)" : "(facultatif, tu es ajouté automatiquement)"}>
+                      {user.role === "ADMIN" ? "Enseignants du cours" : "Co-enseignants"}
+                    </Label>
+                    <div className="grid max-h-44 gap-1 overflow-y-auto rounded-lg border border-line bg-white p-3 sm:grid-cols-2">
+                      {teachers.map((t) => (
+                        <label key={t.id} className="flex items-center gap-2 text-sm">
+                          <input type="checkbox" name="teacherIds" value={t.id} /> {t.name}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 )}
                 <Field label="Description" hint="(facultatif)">
                   <Textarea name="description" className="min-h-16" />

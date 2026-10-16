@@ -82,7 +82,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                   {u.id !== admin.id && (
                     <form action={deleteUser}>
                       <input type="hidden" name="id" value={u.id} />
-                      <ConfirmButton message={`Supprimer le compte de ${u.name} ? Ses documents et publications seront supprimés.`}>
+                      <ConfirmButton message={`Supprimer le compte de ${u.name} ? Ses documents et publications seront supprimés, ainsi que les cours dont il est le seul enseignant.`}>
                         Supprimer
                       </ConfirmButton>
                     </form>

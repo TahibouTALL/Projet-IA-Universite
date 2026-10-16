@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { db, schema } from "@/db";
-import { requireUser, visibleCourses } from "@/lib/access";
+import { canManageCourse, requireUser, visibleCourses } from "@/lib/access";
 import type { Deck } from "@/lib/ai/generate";
 import { aiIsSimulated } from "@/lib/ai/provider";
 import { deleteGeneration, publishGeneration } from "@/app/actions/ai";
@@ -20,7 +20,7 @@ export default async function GenerationPage({ params }: { params: Promise<{ id:
   });
   if (!g) notFound();
   const staff = user.role === "TEACHER" || user.role === "ADMIN";
-  const myCourses = staff ? (await visibleCourses(user)).filter((c) => user.role === "ADMIN" || c.teacherId === user.id) : [];
+  const myCourses = staff ? (await visibleCourses(user)).filter((c) => canManageCourse(user, c)) : [];
   const sources = ((g.params as { sources?: string[] } | null)?.sources ?? []).filter((v, i, a) => a.indexOf(v) === i);
   const deck = g.type === "PRESENTATION" ? (JSON.parse(g.content) as Deck) : null;
 

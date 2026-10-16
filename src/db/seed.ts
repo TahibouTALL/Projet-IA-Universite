@@ -62,6 +62,14 @@ async function main() {
     ])
     .returning();
 
+  // Chaque cours a ses enseignants ; la RDM est co-enseignée par deux professeurs
+  await db.insert(schema.courseTeachers).values([
+    { courseId: rdm.id, userId: teacher.id },
+    { courseId: rdm.id, userId: teacher2.id },
+    { courseId: rop.id, userId: teacher2.id },
+    { courseId: qual.id, userId: teacher.id },
+  ]);
+
   await db.insert(schema.courseItems).values([
     {
       courseId: rdm.id,
@@ -104,7 +112,7 @@ async function main() {
       startTime: s,
       endTime: e,
       room,
-      teacherName: c.teacherId === teacher.id ? teacher.name : teacher2.name,
+      teacherName: c.id === rdm.id ? `${teacher.name}, ${teacher2.name}` : c.teacherId === teacher.id ? teacher.name : teacher2.name,
     })),
     { classGroupId: dic2.id, courseId: qual.id, title: qual.title, dayOfWeek: 2, startTime: "14:00", endTime: "17:00", room: "Salle 7", teacherName: teacher.name },
   ]);

@@ -1,5 +1,5 @@
 "use server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, ne } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -22,8 +22,17 @@ const CourseSchema = z.object({
   description: z.string().trim().optional(),
   classGroupId: z.string().min(1, "Choisis la classe."),
   color: z.string().regex(/^#[0-9a-f]{6}$/i).default("#0f766e"),
-  teacherId: z.string().optional(),
 });
+
+/** Ne garde que des comptes enseignants existants. */
+async function validTeacherIds(ids: string[]) {
+  if (!ids.length) return [];
+  const rows = await db
+    .select({ id: schema.users.id })
+    .from(schema.users)
+    .where(and(inArray(schema.users.id, ids), inArray(schema.users.role, ["TEACHER", "ADMIN"])));
+  return rows.map((r) => r.id);
+}
 
 export async function createCourse(_: ActionResult, data: FormData): Promise<ActionResult> {
   const user = await requireUser();
@@ -31,7 +40,11 @@ export async function createCourse(_: ActionResult, data: FormData): Promise<Act
   const parsed = CourseSchema.safeParse(Object.fromEntries(data));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const v = parsed.data;
-  const teacherId = user.role === "ADMIN" && v.teacherId ? v.teacherId : user.id;
+  // Un enseignant est toujours enseignant du cours qu'il crée ; l'admin choisit librement
+  const chosen = await validTeacherIds(data.getAll("teacherIds").map(String));
+  const teacherIds = user.role === "ADMIN" && chosen.length ? chosen : [user.id, ...chosen.filter((id) => id !== user.id)];
+  if (!teacherIds.length) return { error: "Choisis au moins un enseignant." };
+  const teacherId = teacherIds[0];
   const [course] = await db
     .insert(schema.courses)
     .values({
@@ -43,6 +56,7 @@ export async function createCourse(_: ActionResult, data: FormData): Promise<Act
       teacherId,
     })
     .returning();
+  await db.insert(schema.courseTeachers).values(teacherIds.map((userId) => ({ courseId: course.id, userId })));
   revalidatePath("/courses");
   redirect(`/courses/${course.id}`);
 }
@@ -56,6 +70,37 @@ export async function deleteCourse(data: FormData) {
   await Promise.all(docs.map((d) => removeFile(d.storageKey)));
   revalidatePath("/courses");
   redirect("/courses");
+}
+
+export async function addCourseTeacher(_: ActionResult, data: FormData): Promise<ActionResult> {
+  const user = await requireUser();
+  const course = await loadCourse(String(data.get("courseId")));
+  if (!canManageCourse(user, course)) return { error: "Non autorisé." };
+  const [userId] = await validTeacherIds([String(data.get("userId") || "")]);
+  if (!userId) return { error: "Choisis un enseignant." };
+  await db.insert(schema.courseTeachers).values({ courseId: course.id, userId }).onConflictDoNothing();
+  revalidatePath(`/courses/${course.id}`);
+  return { ok: "Enseignant ajouté au cours." };
+}
+
+export async function removeCourseTeacher(data: FormData) {
+  const user = await requireUser();
+  const course = await loadCourse(String(data.get("courseId")));
+  if (!canManageCourse(user, course)) throw new Error("Non autorisé");
+  const userId = String(data.get("userId"));
+  const others = await db
+    .select({ id: schema.courseTeachers.userId })
+    .from(schema.courseTeachers)
+    .where(and(eq(schema.courseTeachers.courseId, course.id), ne(schema.courseTeachers.userId, userId)));
+  if (!others.length) throw new Error("Un cours doit garder au moins un enseignant.");
+  await db
+    .delete(schema.courseTeachers)
+    .where(and(eq(schema.courseTeachers.courseId, course.id), eq(schema.courseTeachers.userId, userId)));
+  if (course.teacherId === userId) {
+    await db.update(schema.courses).set({ teacherId: others[0].id }).where(eq(schema.courses.id, course.id));
+  }
+  revalidatePath(`/courses/${course.id}`);
+  if (userId === user.id && user.role !== "ADMIN") redirect("/courses");
 }
 
 const ItemSchema = z.object({
@@ -132,9 +177,9 @@ const UploadSchema = z.object({
 
 /**
  * Dépôt d'un document dans un cours.
- * - enseignant / admin : publié directement
- * - étudiant : partagé avec la classe, publié directement
- * - ambassadeur (mode "contribution") : en attente de validation avant d'alimenter l'IA
+ * - enseignant / admin : visible dans le cours
+ * - étudiant : partagé avec la classe
+ * - mode "ai" (ambassadeur, enseignant, admin) : réservé au contexte de l'IA, jamais affiché aux étudiants
  */
 export async function uploadDocument(_: ActionResult, data: FormData): Promise<ActionResult> {
   const user = await requireUser();
@@ -148,14 +193,9 @@ export async function uploadDocument(_: ActionResult, data: FormData): Promise<A
   const course = await loadCourse(v.courseId);
   if (!canViewCourse(user, course)) return { error: "Tu n'as pas accès à ce cours." };
 
-  const asContribution = data.get("mode") === "contribution" && user.role === "AMBASSADOR";
-  const source = canManageCourse(user, course)
-    ? user.role === "ADMIN"
-      ? "ADMIN"
-      : "TEACHER"
-    : asContribution
-      ? "AMBASSADOR"
-      : "STUDENT";
+  const manager = canManageCourse(user, course);
+  const aiOnly = data.get("mode") === "ai" && (user.role === "AMBASSADOR" || manager);
+  const source = manager ? (user.role === "ADMIN" ? "ADMIN" : "TEACHER") : user.role === "AMBASSADOR" && aiOnly ? "AMBASSADOR" : "STUDENT";
 
   await storeDocument({
     file: file!,
@@ -163,7 +203,8 @@ export async function uploadDocument(_: ActionResult, data: FormData): Promise<A
     description: v.description,
     kind: v.kind,
     source,
-    status: source === "AMBASSADOR" ? "PENDING" : "PUBLISHED",
+    status: "PUBLISHED",
+    aiOnly,
     courseId: course.id,
     uploaderId: user.id,
     academicYear: v.academicYear,
@@ -172,11 +213,11 @@ export async function uploadDocument(_: ActionResult, data: FormData): Promise<A
   revalidatePath(`/courses/${course.id}`);
   revalidatePath("/documents");
   revalidatePath("/ambassador");
+  revalidatePath("/knowledge");
   return {
-    ok:
-      source === "AMBASSADOR"
-        ? "Merci ! Ta contribution sera visible après validation."
-        : isStudentLike(user)
+    ok: aiOnly
+      ? "Merci ! Le document a été ajouté à la base de l'IA."
+      : isStudentLike(user)
           ? "Document partagé avec ta classe."
           : "Document publié.",
   };
@@ -194,27 +235,7 @@ export async function deleteDocument(data: FormData) {
   await db.delete(schema.documents).where(eq(schema.documents.id, doc.id));
   await removeFile(doc.storageKey);
   revalidatePath("/documents");
+  revalidatePath("/knowledge");
+  revalidatePath("/ambassador");
   if (doc.courseId) revalidatePath(`/courses/${doc.courseId}`);
-}
-
-/** Validation ou refus d'une contribution d'ambassadeur. */
-export async function reviewDocument(data: FormData) {
-  const user = await requireUser();
-  const doc = await db.query.documents.findFirst({
-    where: and(eq(schema.documents.id, String(data.get("documentId"))), eq(schema.documents.status, "PENDING")),
-    with: { course: true },
-  });
-  if (!doc || !doc.course || !canManageCourse(user, doc.course)) throw new Error("Non autorisé");
-  const decision = data.get("decision") === "approve" ? "PUBLISHED" : "REJECTED";
-  await db
-    .update(schema.documents)
-    .set({
-      status: decision,
-      reviewerId: user.id,
-      reviewNote: String(data.get("note") || "") || null,
-      kind: (DOC_KINDS as readonly string[]).includes(String(data.get("kind"))) ? (data.get("kind") as DocKind) : doc.kind,
-    })
-    .where(eq(schema.documents.id, doc.id));
-  revalidatePath("/moderation");
-  revalidatePath("/documents");
 }

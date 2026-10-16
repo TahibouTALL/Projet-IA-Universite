@@ -14,12 +14,20 @@ export type CompletionRequest = {
 
 const PROVIDER = (process.env.AI_PROVIDER || "mock").toLowerCase();
 const API_KEY = process.env.AI_API_KEY || "";
-const BASE_URL = process.env.AI_BASE_URL || "";
+
+// Services compatibles avec l'API OpenAI, avec une offre gratuite pour démarrer
+const OPENAI_COMPATIBLE: Record<string, string> = {
+  groq: "https://api.groq.com/openai/v1",
+  openrouter: "https://openrouter.ai/api/v1",
+};
+const BASE_URL = process.env.AI_BASE_URL || OPENAI_COMPATIBLE[PROVIDER] || "";
 
 const DEFAULT_MODELS: Record<string, string> = {
   anthropic: "claude-sonnet-5-5",
   openai: "gpt-5-mini",
   gemini: "gemini-2.5-flash",
+  groq: "openai/gpt-oss-120b",
+  openrouter: "openai/gpt-oss-20b:free",
   mock: "simulation",
 };
 
@@ -35,6 +43,8 @@ export async function complete(req: CompletionRequest): Promise<string> {
     case "anthropic":
       return anthropic(req, maxTokens);
     case "openai":
+    case "groq":
+    case "openrouter":
       return openai(req, maxTokens);
     case "gemini":
       return gemini(req, maxTokens);
@@ -55,6 +65,8 @@ async function post(url: string, headers: Record<string, string>, body: unknown)
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
     console.error(`Erreur IA ${res.status}:`, detail.slice(0, 500));
+    if (res.status === 429)
+      throw new AiError("Limite d'utilisation du service IA atteinte (offre gratuite). Réessaie dans une minute.");
     throw new AiError(`Le service IA a répondu ${res.status}. Vérifie la clé et le modèle dans la configuration.`);
   }
   return res.json();
@@ -78,14 +90,16 @@ async function anthropic(req: CompletionRequest, maxTokens: number) {
     .join("");
 }
 
-// Compatible avec OpenAI et toute API au même format (Ollama, vLLM, LM Studio, Mistral...)
+// Compatible avec OpenAI et toute API au même format (Groq, OpenRouter, Ollama, vLLM, LM Studio...)
 async function openai(req: CompletionRequest, maxTokens: number) {
+  const official = !BASE_URL;
   const data = await post(
     `${BASE_URL || "https://api.openai.com/v1"}/chat/completions`,
     API_KEY ? { authorization: `Bearer ${API_KEY}` } : {},
     {
       model: aiModel,
-      max_completion_tokens: maxTokens,
+      // OpenAI attend max_completion_tokens ; les autres services acceptent max_tokens
+      ...(official ? { max_completion_tokens: maxTokens } : { max_tokens: maxTokens, temperature: req.temperature ?? 0.4 }),
       messages: [{ role: "system", content: req.system }, ...req.messages],
     },
   );

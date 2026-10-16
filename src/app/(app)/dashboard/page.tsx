@@ -67,14 +67,14 @@ export default async function Dashboard() {
   if (user.role === "ADMIN") {
     const [[u], [d], [p]] = await Promise.all([
       db.select({ n: count() }).from(schema.users),
-      db.select({ n: count() }).from(schema.documents).where(eq(schema.documents.status, "PUBLISHED")),
-      db.select({ n: count() }).from(schema.documents).where(eq(schema.documents.status, "PENDING")),
+      db.select({ n: count() }).from(schema.documents).where(eq(schema.documents.aiOnly, false)),
+      db.select({ n: count() }).from(schema.documents).where(eq(schema.documents.aiOnly, true)),
     ]);
     stats = [
       { label: "Utilisateurs", value: u.n },
       { label: "Cours", value: courses.length },
-      { label: "Documents publiés", value: d.n },
-      { label: "Contributions à valider", value: p.n },
+      { label: "Documents des cours", value: d.n },
+      { label: "Documents de la base IA", value: p.n },
     ];
   }
 

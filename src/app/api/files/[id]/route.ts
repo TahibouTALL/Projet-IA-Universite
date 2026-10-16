@@ -12,8 +12,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   if (!doc || !doc.course) return new NextResponse("Introuvable", { status: 404 });
 
   const manager = canManageCourse(user, doc.course);
+  // Les documents réservés à l'IA ne sont téléchargeables que par leur auteur et les enseignants du cours
   const allowed =
-    manager || doc.uploaderId === user.id || (doc.status === "PUBLISHED" && canViewCourse(user, doc.course));
+    manager ||
+    doc.uploaderId === user.id ||
+    (!doc.aiOnly && doc.status === "PUBLISHED" && canViewCourse(user, doc.course));
   if (!allowed) return new NextResponse("Accès refusé", { status: 403 });
 
   const data = await loadFile(doc.storageKey).catch(() => null);

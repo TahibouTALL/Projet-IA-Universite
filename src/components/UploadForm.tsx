@@ -12,7 +12,7 @@ export function UploadForm({
 }: {
   courses?: { id: string; title: string }[];
   fixedCourseId?: string;
-  mode?: "share" | "contribution";
+  mode?: "share" | "ai";
   submitLabel?: string;
   defaultKind?: string;
 }) {
@@ -52,7 +52,7 @@ export function UploadForm({
           </Select>
         </Field>
       </div>
-      {mode === "contribution" && (
+      {mode === "ai" && (
         <>
           <Field label="Année universitaire" hint="(facultatif)">
             <Input name="academicYear" placeholder="2025-2026" />

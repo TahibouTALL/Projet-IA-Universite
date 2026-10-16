@@ -1,7 +1,7 @@
 import { and, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { DocKind } from "@/db/schema";
-import { isStudentLike, requireUser, visibleCourses } from "@/lib/access";
+import { canManageCourse, isStudentLike, requireUser, visibleCourses } from "@/lib/access";
 import { DOC_KIND_LABELS } from "@/lib/documents";
 import { DocList } from "@/components/DocList";
 import { UploadForm } from "@/components/UploadForm";
@@ -18,11 +18,12 @@ export default async function DocumentsPage({
   const sp = await searchParams;
   const courses = await visibleCourses(user);
   const courseIds = courses.map((c) => c.id);
-  const manageable = new Set(user.role === "ADMIN" ? courseIds : courses.filter((c) => c.teacherId === user.id).map((c) => c.id));
+  const manageable = new Set(courses.filter((c) => canManageCourse(user, c)).map((c) => c.id));
 
   const filters: (SQL | undefined)[] = [
     courseIds.length ? inArray(schema.documents.courseId, courseIds) : eq(schema.documents.id, "__none__"),
-    or(eq(schema.documents.status, "PUBLISHED"), eq(schema.documents.uploaderId, user.id)),
+    eq(schema.documents.status, "PUBLISHED"),
+    eq(schema.documents.aiOnly, false),
   ];
   if (sp.course && courseIds.includes(sp.course)) filters.push(eq(schema.documents.courseId, sp.course));
   if (sp.kind && sp.kind in DOC_KIND_LABELS) filters.push(eq(schema.documents.kind, sp.kind as DocKind));
@@ -96,7 +97,7 @@ export default async function DocumentsPage({
               </Card>
               {user.role === "AMBASSADOR" && (
                 <p className="mt-3 text-sm text-muted">
-                  Tu as un sujet d'examen ou une correction officielle ? Passe par l'espace ambassadeur pour qu'il alimente l'IA après validation.
+                  Pour un sujet d'examen ou une correction qui doit seulement servir à l'IA, passe par l'espace ambassadeur.
                 </p>
               )}
             </Section>

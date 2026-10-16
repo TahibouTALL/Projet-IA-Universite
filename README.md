@@ -6,16 +6,16 @@ Elle sert quatre publics :
 
 | Rôle | Ce qu'il peut faire |
 | --- | --- |
-| **Enseignant** | Créer ses cours et y publier supports, devoirs (avec date limite) et annonces, comme sur Google Classroom. Générer un cours ou une présentation PowerPoint avec l'IA, puis les publier dans un cours en un clic. Valider les contributions des ambassadeurs pour ses cours. |
+| **Enseignant** | Créer ses cours et y publier supports, devoirs (avec date limite) et annonces, comme sur Google Classroom. Un cours peut avoir plusieurs enseignants, avec les mêmes droits. Générer un cours ou une présentation PowerPoint avec l'IA, puis les publier dans un cours en un clic. Consulter et compléter la base de connaissances de l'IA pour ses cours. |
 | **Étudiant** | Retrouver ses cours et documents classés par matière et par type (cours, TD, TP, examens, corrections...). Partager des documents avec sa classe. Discuter avec un tuteur IA qui explique le cours et cite ses sources, générer un cours, des exercices et leur correction (affichée à part). |
 | **Administration** | Gérer les comptes, les rôles et les classes. Saisir ou importer l'emploi du temps (CSV). Publier des annonces pour toute l'école ou une classe. Suivre l'activité. |
-| **Ambassadeur** | Étudiant volontaire qui dépose les documents de l'établissement (anciens sujets, devoirs, corrections, polycopiés). Après validation par l'enseignant, ces documents sont visibles par la classe et enrichissent les réponses de l'IA. |
+| **Ambassadeur** | Étudiant volontaire qui dépose les documents de l'établissement (anciens sujets, devoirs, corrections, polycopiés). Ces documents ne sont pas publiés : ils servent uniquement de contexte à l'IA, qui les utilise dès le dépôt. Les enseignants du cours peuvent les consulter et les retirer. |
 
 ## Comment l'IA utilise les documents
 
 Chaque document déposé (PDF, Word, texte) est découpé en passages et indexé en plein texte dans PostgreSQL (dictionnaire français). Quand un étudiant pose une question ou demande des exercices, la plateforme retrouve les passages les plus pertinents dans les cours auxquels il a accès et les transmet au modèle. Les réponses du tuteur indiquent les documents utilisés.
 
-Plus les ambassadeurs et enseignants déposent de documents de qualité, plus l'IA colle au programme réel de l'établissement.
+Plus les ambassadeurs et enseignants déposent de documents de qualité, plus l'IA colle au programme réel de l'établissement. Les documents de la « base de l'IA » restent invisibles pour les étudiants : l'IA s'en inspire et peut citer leur titre, mais personne d'autre que leur auteur et les enseignants du cours ne peut les ouvrir.
 
 ## Choix techniques
 
@@ -96,15 +96,35 @@ docker compose exec db pg_dump -U campus campus > sauvegarde-$(date +%F).sql
 
 ## Configuration de l'IA
 
-| Fournisseur | Variables |
-| --- | --- |
-| Claude (Anthropic) | `AI_PROVIDER=anthropic`, `AI_API_KEY=...`, `AI_MODEL` facultatif (par défaut `claude-sonnet-5-5`) |
-| OpenAI | `AI_PROVIDER=openai`, `AI_API_KEY=...`, `AI_MODEL=...` |
-| Gemini | `AI_PROVIDER=gemini`, `AI_API_KEY=...`, `AI_MODEL` facultatif (par défaut `gemini-2.5-flash`) |
-| Modèle local (Ollama, vLLM, LM Studio) | `AI_PROVIDER=openai`, `AI_BASE_URL=http://serveur:11434/v1`, `AI_MODEL=nom-du-modele`, clé vide |
-| Simulation | `AI_PROVIDER=mock` |
+### Démarrer gratuitement avec Groq (recommandé)
 
-Vérifier sur le site du fournisseur que le nom de modèle choisi est toujours proposé. La page Administration affiche le fournisseur actif.
+1. Créer un compte sur [console.groq.com](https://console.groq.com) (email ou compte Google, sans carte bancaire).
+2. Aller dans **API Keys** et cliquer sur **Create API Key**, puis copier la clé (elle commence par `gsk_`).
+3. Dans `.env` :
+
+```bash
+AI_PROVIDER="groq"
+AI_API_KEY="gsk_..."
+AI_MODEL=""            # vide = openai/gpt-oss-120b
+```
+
+4. Redémarrer l'application. La page Administration doit afficher « groq ».
+
+L'offre gratuite de Groq est limitée en nombre de requêtes par minute et par jour, pour toute l'organisation. C'est suffisant pour un pilote avec une ou deux classes, pas pour toute l'université ; les limites à jour sont dans la console Groq. Quand la limite est atteinte, la plateforme affiche un message clair au lieu d'une erreur.
+
+### Autres fournisseurs
+
+| Fournisseur | Variables | Remarques |
+| --- | --- | --- |
+| Groq | `AI_PROVIDER=groq`, `AI_API_KEY` | Gratuit avec limites. Modèle par défaut `openai/gpt-oss-120b`. |
+| OpenRouter | `AI_PROVIDER=openrouter`, `AI_API_KEY`, `AI_MODEL` (un modèle se terminant par `:free`) | Modèles gratuits très limités par jour ; certains fournisseurs amont peuvent réutiliser les données. |
+| Gemini | `AI_PROVIDER=gemini`, `AI_API_KEY`, `AI_MODEL` (un modèle Flash proposé dans Google AI Studio) | Offre gratuite, mais Google peut utiliser les échanges pour améliorer ses produits : à éviter avec des données d'étudiants. |
+| Claude (Anthropic) | `AI_PROVIDER=anthropic`, `AI_API_KEY`, `AI_MODEL` facultatif (`claude-sonnet-5-5`) | Payant, très bonne qualité en français et en rédaction. |
+| OpenAI | `AI_PROVIDER=openai`, `AI_API_KEY`, `AI_MODEL` | Payant. |
+| Modèle local (Ollama, vLLM, LM Studio) | `AI_PROVIDER=openai`, `AI_BASE_URL=http://serveur:11434/v1`, `AI_MODEL`, clé vide | Gratuit et les données restent à l'école, mais demande un serveur avec carte graphique. |
+| Simulation | `AI_PROVIDER=mock` | Réponses d'exemple, pour tester sans clé. |
+
+Les offres gratuites changent souvent : vérifier les conditions sur le site du fournisseur avant un déploiement à grande échelle.
 
 ## Format d'import de l'emploi du temps
 
@@ -124,7 +144,7 @@ L'intitulé est rattaché au cours de la classe s'il correspond à son titre ou 
 src/
   app/
     (app)/            pages connectées : tableau de bord, cours, documents,
-                      emploi du temps, annonces, IA, ambassadeur, modération, admin
+                      emploi du temps, annonces, IA, ambassadeur, base de l'IA, admin
     actions/          actions serveur (cours, administration, IA)
     api/              téléchargement sécurisé des fichiers, export PowerPoint, auth
     login, register   connexion et inscription
@@ -156,7 +176,8 @@ Commandes utiles :
 
 - Un étudiant ou un ambassadeur ne voit que les cours de sa classe ; un enseignant voit ses propres cours ; l'administration voit tout.
 - Les fichiers ne sont jamais servis publiquement : chaque téléchargement vérifie le compte et le cours.
-- Les contributions d'ambassadeurs restent invisibles et hors de l'IA tant qu'elles ne sont pas validées.
+- Les documents de la base de l'IA (dépôts des ambassadeurs) ne sont jamais listés ni téléchargeables par les étudiants.
+- Un cours peut avoir plusieurs enseignants ; chacun peut publier, gérer les documents et ajouter ou retirer un collègue.
 - L'inscription publique ne crée que des comptes étudiants ; les autres rôles sont attribués par l'administration.
 - Le rôle est relu en base à chaque requête : un changement de rôle prend effet immédiatement.
 

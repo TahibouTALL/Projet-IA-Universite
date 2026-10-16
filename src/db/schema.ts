@@ -7,6 +7,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
 } from "drizzle-orm/pg-core";
@@ -65,11 +66,27 @@ export const courses = pgTable("courses", {
   classGroupId: text("class_group_id")
     .notNull()
     .references(() => classGroups.id, { onDelete: "cascade" }),
+  // Enseignant responsable (créateur du cours) ; les autres enseignants sont dans course_teachers
   teacherId: text("teacher_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
   createdAt: createdAt(),
 });
+
+// Enseignants d'un cours (un cours peut en avoir plusieurs, avec les mêmes droits)
+export const courseTeachers = pgTable(
+  "course_teachers",
+  {
+    courseId: text("course_id")
+      .notNull()
+      .references(() => courses.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [primaryKey({ columns: [t.courseId, t.userId] }), index("course_teachers_user_idx").on(t.userId)],
+);
 
 // Publication dans un cours : leçon, devoir ou annonce
 export const courseItems = pgTable("course_items", {
@@ -102,6 +119,8 @@ export const documents = pgTable(
     status: docStatusEnum("status").default("PUBLISHED").notNull(),
     // Le document alimente la base de connaissances de l'IA
     aiEnabled: boolean("ai_enabled").default(true).notNull(),
+    // Document réservé au contexte de l'IA : jamais affiché aux étudiants (contributions des ambassadeurs)
+    aiOnly: boolean("ai_only").default(false).notNull(),
     academicYear: text("academic_year"),
     courseId: text("course_id").references(() => courses.id, { onDelete: "cascade" }),
     itemId: text("item_id").references(() => courseItems.id, { onDelete: "cascade" }),
@@ -214,6 +233,7 @@ export const usersRelations = relations(users, ({ one }) => ({
 export const coursesRelations = relations(courses, ({ one, many }) => ({
   classGroup: one(classGroups, { fields: [courses.classGroupId], references: [classGroups.id] }),
   teacher: one(users, { fields: [courses.teacherId], references: [users.id] }),
+  teachers: many(courseTeachers),
   items: many(courseItems),
   documents: many(documents),
 }));
@@ -250,4 +270,8 @@ export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
 export const generationsRelations = relations(generations, ({ one }) => ({
   user: one(users, { fields: [generations.userId], references: [users.id] }),
   course: one(courses, { fields: [generations.courseId], references: [courses.id] }),
+}));
+export const courseTeachersRelations = relations(courseTeachers, ({ one }) => ({
+  course: one(courses, { fields: [courseTeachers.courseId], references: [courses.id] }),
+  user: one(users, { fields: [courseTeachers.userId], references: [users.id] }),
 }));

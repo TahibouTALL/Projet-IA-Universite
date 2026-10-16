@@ -13,6 +13,7 @@ export type NewDocument = {
   kind: DocKind;
   source: "TEACHER" | "STUDENT" | "AMBASSADOR" | "ADMIN";
   status: "PENDING" | "PUBLISHED";
+  aiOnly?: boolean;
   courseId: string;
   itemId?: string | null;
   uploaderId: string;
@@ -48,6 +49,7 @@ export async function storeDocument(input: NewDocument) {
       uploaderId: input.uploaderId,
       academicYear: input.academicYear || null,
       aiEnabled: input.aiEnabled ?? true,
+      aiOnly: input.aiOnly ?? false,
     })
     .returning();
 

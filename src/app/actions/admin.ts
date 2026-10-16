@@ -4,7 +4,7 @@ import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import { requireRole } from "@/lib/access";
+import { requireRole, teacherNames } from "@/lib/access";
 import type { ActionResult } from "@/components/forms";
 
 const ROLES = ["ADMIN", "TEACHER", "STUDENT", "AMBASSADOR"] as const;
@@ -86,6 +86,12 @@ export async function deleteUser(data: FormData) {
   const admin = await requireRole("ADMIN");
   const id = String(data.get("id"));
   if (id === admin.id) throw new Error("Impossible de supprimer ton propre compte.");
+  // Les cours dont il est responsable passent à un co-enseignant (sinon ils sont supprimés avec le compte)
+  const owned = await db.query.courses.findMany({ where: eq(schema.courses.teacherId, id), with: { teachers: true } });
+  for (const c of owned) {
+    const next = c.teachers.find((t) => t.userId !== id);
+    if (next) await db.update(schema.courses).set({ teacherId: next.userId }).where(eq(schema.courses.id, c.id));
+  }
   await db.delete(schema.users).where(eq(schema.users.id, id));
   revalidatePath("/admin");
 }
@@ -111,7 +117,7 @@ export async function addScheduleEntry(_: ActionResult, data: FormData): Promise
   const v = parsed.data;
   if (v.endTime <= v.startTime) return { error: "L'heure de fin doit suivre l'heure de début." };
   const course = v.courseId
-    ? await db.query.courses.findFirst({ where: eq(schema.courses.id, v.courseId), with: { teacher: true } })
+    ? await db.query.courses.findFirst({ where: eq(schema.courses.id, v.courseId), with: { teacher: true, teachers: { with: { user: true } } } })
     : null;
   const title = v.title || course?.title;
   if (!title) return { error: "Choisis un cours ou donne un intitulé." };
@@ -123,7 +129,7 @@ export async function addScheduleEntry(_: ActionResult, data: FormData): Promise
     startTime: v.startTime,
     endTime: v.endTime,
     room: v.room || null,
-    teacherName: v.teacherName || course?.teacher.name || null,
+    teacherName: v.teacherName || (course ? teacherNames(course) : null) || null,
   });
   revalidatePath("/schedule");
   return { ok: "Créneau ajouté." };
