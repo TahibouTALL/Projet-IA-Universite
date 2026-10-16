@@ -47,9 +47,14 @@ export function Shell({ appName, nav, user, children }: {
         {user.roleLabel}
         {user.classLabel ? ` · ${user.classLabel}` : ""}
       </div>
-      <button onClick={() => signOut({ callbackUrl: "/login" })} className="mt-3 text-xs text-muted hover:text-ink">
-        Se déconnecter
-      </button>
+      <div className="mt-3 flex gap-4 text-xs">
+        <Link href="/account" onClick={() => setOpen(false)} className="text-muted hover:text-ink">
+          Mon compte
+        </Link>
+        <button onClick={() => signOut({ callbackUrl: "/login" })} className="text-muted hover:text-ink">
+          Se déconnecter
+        </button>
+      </div>
     </div>
   );
 
