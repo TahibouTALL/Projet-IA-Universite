@@ -31,7 +31,7 @@ export function validateFile(file: File | null): string | null {
 /** Enregistre le fichier, crée le document et indexe son texte pour l'IA. */
 export async function storeDocument(input: NewDocument) {
   const data = Buffer.from(await input.file.arrayBuffer());
-  const storageKey = await saveFile(data, input.file.name);
+  const storageKey = await saveFile(data, input.file.name, input.file.type || "application/octet-stream");
   const [doc] = await db
     .insert(schema.documents)
     .values({

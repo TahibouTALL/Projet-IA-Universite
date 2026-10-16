@@ -3,6 +3,9 @@ import { generatePresentationAction } from "@/app/actions/ai";
 import { Field, Input } from "@/components/ui";
 import { GeneratorPage } from "../GeneratorPage";
 
+// Génération IA et indexation des documents : laisser jusqu'à 60 s (hébergement serverless type Vercel)
+export const maxDuration = 60;
+
 export const metadata = { title: "Générer une présentation" };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ course?: string }> }) {

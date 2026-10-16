@@ -24,7 +24,7 @@ Plus les ambassadeurs et enseignants déposent de documents de qualité, plus l'
 | Application | Next.js 15 (App Router, TypeScript) | Un seul projet pour l'interface et le serveur, rendu côté serveur rapide, très répandu. |
 | Base de données | PostgreSQL 16 + Drizzle ORM | Robuste, gratuit, recherche plein texte intégrée, passe à l'échelle. Drizzle est 100 % TypeScript, sans binaire natif. |
 | Authentification | NextAuth (identifiants email + mot de passe) | Simple à déployer ; extensible vers Google, Microsoft ou le SSO de l'université. |
-| Fichiers | Disque local (volume Docker) | Zéro dépendance pour le prototype ; le module `src/lib/storage.ts` se remplace par S3 ou MinIO sans toucher au reste. |
+| Fichiers | Disque local (Docker) ou stockage compatible S3 | Disque local sur un serveur de l'école ; Supabase Storage, Cloudflare R2 ou MinIO pour un hébergement en ligne (`STORAGE_DRIVER=s3`). |
 | IA | Couche commune Claude, OpenAI, Gemini ou serveur local | Le fournisseur se choisit dans `.env`. Compatible avec Ollama ou vLLM pour faire tourner un modèle sur les serveurs de l'école. |
 | Déploiement | Docker Compose | Une commande sur un serveur de l'université. |
 
@@ -93,6 +93,76 @@ Premiers pas après installation : se connecter en administrateur, créer les cl
 ```bash
 docker compose exec db pg_dump -U campus campus > sauvegarde-$(date +%F).sql
 ```
+
+## Mettre en ligne gratuitement (Vercel + Supabase)
+
+Pour obtenir un lien public du type `campus-ia.vercel.app`, sans serveur à gérer et sans carte bancaire :
+
+- **Supabase** fournit la base PostgreSQL et le stockage des fichiers déposés ;
+- **Vercel** fait tourner l'application.
+
+Compter une trentaine de minutes la première fois.
+
+### 1. Supabase : base de données et stockage
+
+1. Créer un compte sur [supabase.com](https://supabase.com) (le plus simple : « Continue with GitHub »).
+2. **New project** : nom `campus-ia`, un mot de passe de base de données solide (le noter, il servira plus bas), région **Central EU (Frankfurt)**.
+3. Une fois le projet prêt, cliquer sur **Connect** en haut de la page et copier deux adresses, en remplaçant `[YOUR-PASSWORD]` par le mot de passe choisi :
+   - **Transaction pooler** (port 6543) : pour Vercel ;
+   - **Session pooler** (port 5432) : pour créer les tables depuis ton ordinateur.
+4. Menu **Storage** : **New bucket**, nom `campus-ia`, laisser **Public bucket** désactivé.
+5. Menu **Storage**, puis **S3** (configuration S3) : noter l'**Endpoint** et la **Region**, puis **New access key** et noter l'**Access key ID** et le **Secret access key** (le secret ne s'affiche qu'une fois).
+
+### 2. Créer les tables et le compte administrateur
+
+Depuis le dossier du projet sur ton ordinateur, dans l'Invite de commandes (`cmd`), avec l'adresse **Session pooler** :
+
+```
+set "DATABASE_URL=postgresql://postgres.xxxx:MOT_DE_PASSE@aws-0-eu-central-1.pooler.supabase.com:5432/postgres"
+set "SEED_ADMIN_EMAIL=ton.email@ept.sn"
+set "SEED_ADMIN_PASSWORD=un-mot-de-passe-solide"
+npm run db:migrate
+npm run db:seed -- --admin-only
+```
+
+Les guillemets autour de chaque `set` évitent les problèmes si le mot de passe contient des caractères spéciaux. Ne pas utiliser les données de démonstration en ligne : leurs mots de passe sont publics dans ce README.
+
+### 3. Vercel : l'application
+
+1. Créer un compte sur [vercel.com](https://vercel.com) avec **Continue with GitHub**.
+2. **Add New**, puis **Project**, puis **Import** sur le dépôt `Projet-IA-Universite`.
+3. Ouvrir **Environment Variables** et coller le bloc suivant (Vercel accepte un collage de plusieurs lignes), après avoir remplacé les valeurs :
+
+```
+NEXT_PUBLIC_APP_NAME=Campus IA
+DATABASE_URL=adresse Transaction pooler (port 6543)
+DB_POOL_MAX=3
+NEXTAUTH_SECRET=une longue suite de caractères au hasard
+ALLOWED_EMAIL_DOMAIN=ept.sn
+STORAGE_DRIVER=s3
+S3_ENDPOINT=https://xxxx.storage.supabase.co/storage/v1/s3
+S3_REGION=eu-central-1
+S3_BUCKET=campus-ia
+S3_ACCESS_KEY_ID=...
+S3_SECRET_ACCESS_KEY=...
+S3_FORCE_PATH_STYLE=true
+MAX_UPLOAD_MB=4
+AI_PROVIDER=groq
+AI_API_KEY=gsk_...
+```
+
+4. Cliquer sur **Deploy**. Après deux ou trois minutes, Vercel affiche l'adresse du site.
+5. Ajouter une dernière variable `NEXTAUTH_URL` avec cette adresse (par exemple `https://campus-ia.vercel.app`), puis **Deployments**, les trois points du dernier déploiement, **Redeploy**.
+6. Dans **Settings**, puis **Functions**, choisir la région **Frankfurt (fra1)**, la plus proche de la base Supabase.
+
+Ouvrir le lien, se connecter avec le compte administrateur, créer les classes et les comptes enseignants : la plateforme est en ligne. Chaque `git push` sur `main` redéploie automatiquement.
+
+### Limites de cette solution gratuite
+
+- **Fichiers de 4 Mo maximum** : Vercel limite la taille des requêtes. Pour des fichiers plus lourds, passer sur le serveur de l'université (Docker) ou ajouter un envoi direct vers le stockage.
+- **Supabase met en pause** un projet gratuit inactif pendant une semaine ; il se réactive depuis le tableau de bord Supabase. Offre gratuite : 500 Mo de base et 1 Go de fichiers.
+- **Groq gratuit** : nombre de requêtes IA limité par jour (voir plus bas).
+- L'offre gratuite de Vercel est prévue pour un usage non commercial : parfaite pour un pilote, à revoir pour un déploiement officiel.
 
 ## Configuration de l'IA
 
@@ -184,7 +254,7 @@ Commandes utiles :
 
 1. **Recherche sémantique** : ajouter l'extension `pgvector` et des embeddings aux passages, en complément de la recherche plein texte.
 2. **Réponses en streaming** dans le tuteur, pour un affichage mot à mot.
-3. **Stockage objet** (MinIO sur site ou S3) et file de traitement pour l'indexation des gros documents et l'OCR des scans.
+3. **Envoi direct des fichiers** vers le stockage (au-delà de 4 Mo sur Vercel) et file de traitement pour l'indexation des gros documents et l'OCR des scans.
 4. **Connexion unique** avec les comptes de l'université (Google Workspace, Microsoft 365 ou LDAP).
 5. **Notifications** par email ou WhatsApp pour les annonces et les devoirs.
 6. **Quotas IA** par utilisateur et tableau de bord d'usage pour maîtriser les coûts.

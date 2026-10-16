@@ -3,6 +3,9 @@ import { generateExercisesAction } from "@/app/actions/ai";
 import { Field, Input, Select } from "@/components/ui";
 import { GeneratorPage, LEVELS } from "../GeneratorPage";
 
+// Génération IA et indexation des documents : laisser jusqu'à 60 s (hébergement serverless type Vercel)
+export const maxDuration = 60;
+
 export const metadata = { title: "Exercices et corrections" };
 
 export default async function Page({ searchParams }: { searchParams: Promise<{ course?: string }> }) {

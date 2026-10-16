@@ -7,6 +7,9 @@ import { DocList } from "@/components/DocList";
 import { UploadForm } from "@/components/UploadForm";
 import { btn, Card, Empty, Input, PageHeader, Section, Select } from "@/components/ui";
 
+// Génération IA et indexation des documents : laisser jusqu'à 60 s (hébergement serverless type Vercel)
+export const maxDuration = 60;
+
 export const metadata = { title: "Documents" };
 
 export default async function DocumentsPage({

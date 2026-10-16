@@ -6,6 +6,8 @@ import { deckToPptx } from "@/lib/ai/pptx";
 import type { Deck } from "@/lib/ai/generate";
 import { APP_NAME } from "@/lib/appname";
 
+export const maxDuration = 30;
+
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return new NextResponse("Non connecté", { status: 401 });

@@ -5,6 +5,9 @@ import { addScheduleEntry, deleteScheduleEntry, importSchedule } from "@/app/act
 import { ActionForm, ConfirmButton, SubmitButton } from "@/components/forms";
 import { btn, Card, DAYS, Empty, Field, Input, PageHeader, Section, Select } from "@/components/ui";
 
+// Génération IA et indexation des documents : laisser jusqu'à 60 s (hébergement serverless type Vercel)
+export const maxDuration = 60;
+
 export const metadata = { title: "Emploi du temps" };
 
 export default async function SchedulePage({ searchParams }: { searchParams: Promise<{ class?: string }> }) {

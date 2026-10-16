@@ -212,7 +212,7 @@ export async function publishGeneration(_: ActionResult, data: FormData): Promis
       .insert(schema.courseItems)
       .values({ courseId: course.id, authorId: user.id, type: "LESSON", title: deck.title, content: deck.subtitle ?? "" })
       .returning();
-    const storageKey = await saveFile(buffer, fileName);
+    const storageKey = await saveFile(buffer, fileName, "application/vnd.openxmlformats-officedocument.presentationml.presentation");
     await db.insert(schema.documents).values({
       title: deck.title,
       fileName,

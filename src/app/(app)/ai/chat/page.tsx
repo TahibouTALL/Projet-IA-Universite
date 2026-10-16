@@ -7,6 +7,9 @@ import { ConfirmButton } from "@/components/forms";
 import { btn, cx, Select } from "@/components/ui";
 import { Chat } from "./Chat";
 
+// Génération IA et indexation des documents : laisser jusqu'à 60 s (hébergement serverless type Vercel)
+export const maxDuration = 60;
+
 export const metadata = { title: "Tuteur IA" };
 
 export default async function ChatPage({ searchParams }: { searchParams: Promise<{ session?: string; course?: string }> }) {

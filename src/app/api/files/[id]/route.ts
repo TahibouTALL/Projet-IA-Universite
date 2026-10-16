@@ -5,6 +5,8 @@ import { loadFile } from "@/lib/storage";
 
 const INLINE = /^(application\/pdf|image\/|text\/plain)/;
 
+export const maxDuration = 30;
+
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return new NextResponse("Non connecté", { status: 401 });

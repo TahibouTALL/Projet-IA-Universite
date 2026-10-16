@@ -8,6 +8,9 @@ import { Markdown } from "@/components/Markdown";
 import { UploadForm } from "@/components/UploadForm";
 import { Badge, ButtonLink, Card, Empty, Field, formatDate, Input, Section, Select, Textarea } from "@/components/ui";
 
+// Génération IA et indexation des documents : laisser jusqu'à 60 s (hébergement serverless type Vercel)
+export const maxDuration = 60;
+
 const TYPE_LABEL = { LESSON: "Cours", ASSIGNMENT: "Devoir", ANNOUNCEMENT: "Annonce" } as const;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {

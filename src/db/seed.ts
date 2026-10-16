@@ -6,6 +6,11 @@ import { eq } from "drizzle-orm";
 import { Pool } from "pg";
 import * as schema from "./schema";
 
+// Charge le fichier .env s'il existe (les variables déjà définies dans le terminal restent prioritaires)
+try {
+  process.loadEnvFile();
+} catch {}
+
 async function main() {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   const db = drizzle(pool, { schema });

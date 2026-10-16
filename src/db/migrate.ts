@@ -3,6 +3,11 @@ import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
 
+// Charge le fichier .env s'il existe (les variables déjà définies dans le terminal restent prioritaires)
+try {
+  process.loadEnvFile();
+} catch {}
+
 async function main() {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   await migrate(drizzle(pool), { migrationsFolder: "./drizzle" });

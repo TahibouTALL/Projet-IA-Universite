@@ -10,6 +10,9 @@ import { Markdown } from "@/components/Markdown";
 import { PrintButton } from "@/components/PrintButton";
 import { btn, ButtonLink, Card, formatDate, PageHeader, Section, Select } from "@/components/ui";
 
+// Génération IA et indexation des documents : laisser jusqu'à 60 s (hébergement serverless type Vercel)
+export const maxDuration = 60;
+
 const TYPE_LABEL = { COURSE: "Cours généré", EXERCISES: "Exercices générés", PRESENTATION: "Présentation générée" } as const;
 
 export default async function GenerationPage({ params }: { params: Promise<{ id: string }> }) {
