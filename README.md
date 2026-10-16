@@ -6,7 +6,7 @@ Elle sert quatre publics :
 
 | Rôle | Ce qu'il peut faire |
 | --- | --- |
-| **Enseignant** | Créer ses cours et y publier supports, devoirs (avec date limite) et annonces, comme sur Google Classroom. Un cours peut avoir plusieurs enseignants, avec les mêmes droits. Générer un cours ou une présentation PowerPoint avec l'IA, puis les publier dans un cours en un clic. Consulter et compléter la base de connaissances de l'IA pour ses cours. |
+| **Enseignant** | Créer ses cours et y publier supports, devoirs (avec date limite) et annonces, comme sur Google Classroom. Générer un cours ou une présentation PowerPoint avec l'IA, puis les publier dans un cours en un clic. Consulter et compléter la base de connaissances de l'IA pour ses cours. |
 | **Étudiant** | Retrouver ses cours et documents classés par matière et par type (cours, TD, TP, examens, corrections...). Partager des documents avec sa classe. Discuter avec un tuteur IA qui explique le cours et cite ses sources, générer un cours, des exercices et leur correction (affichée à part). |
 | **Administration** | Gérer les comptes, les rôles et les classes. Saisir ou importer l'emploi du temps (CSV). Publier des annonces pour toute l'école ou une classe. Suivre l'activité. |
 | **Ambassadeur** | Étudiant volontaire qui dépose les documents de l'établissement (anciens sujets, devoirs, corrections, polycopiés). Ces documents ne sont pas publiés : ils servent uniquement de contexte à l'IA, qui les utilise dès le dépôt. Les enseignants du cours peuvent les consulter et les retirer. |
@@ -177,7 +177,6 @@ Commandes utiles :
 - Un étudiant ou un ambassadeur ne voit que les cours de sa classe ; un enseignant voit ses propres cours ; l'administration voit tout.
 - Les fichiers ne sont jamais servis publiquement : chaque téléchargement vérifie le compte et le cours.
 - Les documents de la base de l'IA (dépôts des ambassadeurs) ne sont jamais listés ni téléchargeables par les étudiants.
-- Un cours peut avoir plusieurs enseignants ; chacun peut publier, gérer les documents et ajouter ou retirer un collègue.
 - L'inscription publique ne crée que des comptes étudiants ; les autres rôles sont attribués par l'administration.
 - Le rôle est relu en base à chaque requête : un changement de rôle prend effet immédiatement.
 

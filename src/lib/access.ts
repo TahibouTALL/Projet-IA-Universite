@@ -13,7 +13,7 @@ export type CurrentUser = {
   email: string;
   role: Role;
   classGroupId: string | null;
-  /** Cours dont l'utilisateur est enseignant (responsable ou co-enseignant). */
+  /** Cours dont l'utilisateur est l'enseignant. */
   teachingCourseIds: string[];
 };
 
@@ -26,9 +26,9 @@ export const getCurrentUser = cache(async (): Promise<CurrentUser | null> => {
   const teaching =
     user.role === "TEACHER" || user.role === "ADMIN"
       ? await db
-          .select({ id: schema.courseTeachers.courseId })
-          .from(schema.courseTeachers)
-          .where(eq(schema.courseTeachers.userId, user.id))
+          .select({ id: schema.courses.id })
+          .from(schema.courses)
+          .where(eq(schema.courses.teacherId, user.id))
       : [];
   return {
     id: user.id,
@@ -61,7 +61,6 @@ export async function visibleCourses(user: CurrentUser) {
     with: {
       classGroup: true,
       teacher: { columns: { id: true, name: true } },
-      teachers: { with: { user: { columns: { id: true, name: true } } } },
     },
   } as const;
   if (user.role === "ADMIN") {
@@ -97,12 +96,9 @@ export function canManageCourse(user: CurrentUser, course: { id: string }) {
   return user.role === "ADMIN" || (user.role === "TEACHER" && user.teachingCourseIds.includes(course.id));
 }
 
-/** Noms des enseignants d'un cours, responsable en premier. */
-export function teacherNames(course: { teacherId: string; teachers?: { user: { id: string; name: string } }[]; teacher?: { name: string } }) {
-  const list = (course.teachers ?? []).map((t) => t.user);
-  list.sort((a, b) => (a.id === course.teacherId ? -1 : b.id === course.teacherId ? 1 : a.name.localeCompare(b.name)));
-  const names = list.map((u) => u.name);
-  return names.length ? names.join(", ") : course.teacher?.name ?? "";
+/** Nom de l'enseignant d'un cours. */
+export function teacherNames(course: { teacher?: { name: string } | null }) {
+  return course.teacher?.name ?? "";
 }
 
 /** Charge un cours en vérifiant le droit de lecture, sinon 404. */
@@ -112,7 +108,6 @@ export async function getViewableCourse(user: CurrentUser, courseId: string) {
     with: {
       classGroup: true,
       teacher: { columns: { id: true, name: true } },
-      teachers: { with: { user: { columns: { id: true, name: true } } } },
     },
   });
   if (!course || !canViewCourse(user, course)) notFound();

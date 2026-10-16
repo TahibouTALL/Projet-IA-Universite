@@ -1,5 +1,5 @@
 "use server";
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -22,17 +22,8 @@ const CourseSchema = z.object({
   description: z.string().trim().optional(),
   classGroupId: z.string().min(1, "Choisis la classe."),
   color: z.string().regex(/^#[0-9a-f]{6}$/i).default("#0f766e"),
+  teacherId: z.string().optional(),
 });
-
-/** Ne garde que des comptes enseignants existants. */
-async function validTeacherIds(ids: string[]) {
-  if (!ids.length) return [];
-  const rows = await db
-    .select({ id: schema.users.id })
-    .from(schema.users)
-    .where(and(inArray(schema.users.id, ids), inArray(schema.users.role, ["TEACHER", "ADMIN"])));
-  return rows.map((r) => r.id);
-}
 
 export async function createCourse(_: ActionResult, data: FormData): Promise<ActionResult> {
   const user = await requireUser();
@@ -40,11 +31,13 @@ export async function createCourse(_: ActionResult, data: FormData): Promise<Act
   const parsed = CourseSchema.safeParse(Object.fromEntries(data));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const v = parsed.data;
-  // Un enseignant est toujours enseignant du cours qu'il crée ; l'admin choisit librement
-  const chosen = await validTeacherIds(data.getAll("teacherIds").map(String));
-  const teacherIds = user.role === "ADMIN" && chosen.length ? chosen : [user.id, ...chosen.filter((id) => id !== user.id)];
-  if (!teacherIds.length) return { error: "Choisis au moins un enseignant." };
-  const teacherId = teacherIds[0];
+  // Un enseignant crée ses propres cours ; l'administration peut attribuer le cours à un enseignant
+  let teacherId = user.id;
+  if (user.role === "ADMIN" && v.teacherId) {
+    const t = await db.query.users.findFirst({ where: and(eq(schema.users.id, v.teacherId), eq(schema.users.role, "TEACHER")) });
+    if (!t) return { error: "Enseignant introuvable." };
+    teacherId = t.id;
+  }
   const [course] = await db
     .insert(schema.courses)
     .values({
@@ -56,7 +49,6 @@ export async function createCourse(_: ActionResult, data: FormData): Promise<Act
       teacherId,
     })
     .returning();
-  await db.insert(schema.courseTeachers).values(teacherIds.map((userId) => ({ courseId: course.id, userId })));
   revalidatePath("/courses");
   redirect(`/courses/${course.id}`);
 }
@@ -70,37 +62,6 @@ export async function deleteCourse(data: FormData) {
   await Promise.all(docs.map((d) => removeFile(d.storageKey)));
   revalidatePath("/courses");
   redirect("/courses");
-}
-
-export async function addCourseTeacher(_: ActionResult, data: FormData): Promise<ActionResult> {
-  const user = await requireUser();
-  const course = await loadCourse(String(data.get("courseId")));
-  if (!canManageCourse(user, course)) return { error: "Non autorisé." };
-  const [userId] = await validTeacherIds([String(data.get("userId") || "")]);
-  if (!userId) return { error: "Choisis un enseignant." };
-  await db.insert(schema.courseTeachers).values({ courseId: course.id, userId }).onConflictDoNothing();
-  revalidatePath(`/courses/${course.id}`);
-  return { ok: "Enseignant ajouté au cours." };
-}
-
-export async function removeCourseTeacher(data: FormData) {
-  const user = await requireUser();
-  const course = await loadCourse(String(data.get("courseId")));
-  if (!canManageCourse(user, course)) throw new Error("Non autorisé");
-  const userId = String(data.get("userId"));
-  const others = await db
-    .select({ id: schema.courseTeachers.userId })
-    .from(schema.courseTeachers)
-    .where(and(eq(schema.courseTeachers.courseId, course.id), ne(schema.courseTeachers.userId, userId)));
-  if (!others.length) throw new Error("Un cours doit garder au moins un enseignant.");
-  await db
-    .delete(schema.courseTeachers)
-    .where(and(eq(schema.courseTeachers.courseId, course.id), eq(schema.courseTeachers.userId, userId)));
-  if (course.teacherId === userId) {
-    await db.update(schema.courses).set({ teacherId: others[0].id }).where(eq(schema.courses.id, course.id));
-  }
-  revalidatePath(`/courses/${course.id}`);
-  if (userId === user.id && user.role !== "ADMIN") redirect("/courses");
 }
 
 const ItemSchema = z.object({

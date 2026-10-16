@@ -1,7 +1,7 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { canManageCourse, getViewableCourse, isStudentLike, requireUser, teacherNames } from "@/lib/access";
-import { addCourseTeacher, createItem, deleteCourse, deleteItem, removeCourseTeacher } from "@/app/actions/courses";
+import { createItem, deleteCourse, deleteItem } from "@/app/actions/courses";
 import { ActionForm, ConfirmButton, SubmitButton } from "@/components/forms";
 import { DocList, type DocRow } from "@/components/DocList";
 import { Markdown } from "@/components/Markdown";
@@ -43,16 +43,6 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
     canDelete: manager || d.uploaderId === user.id,
   });
   const official = loose.filter((d) => d.source === "TEACHER" || d.source === "ADMIN");
-  const teachers = [...course.teachers].map((t) => t.user).sort((a, b) => (a.id === course.teacherId ? -1 : b.id === course.teacherId ? 1 : 0));
-  const colleagues = manager
-    ? (
-        await db
-          .select({ id: schema.users.id, name: schema.users.name })
-          .from(schema.users)
-          .where(eq(schema.users.role, "TEACHER"))
-          .orderBy(asc(schema.users.name))
-      ).filter((u) => !teachers.some((t) => t.id === u.id))
-    : [];
   const shared = loose.filter((d) => d.source === "STUDENT");
 
   return (
@@ -186,44 +176,6 @@ export default async function CoursePage({ params }: { params: Promise<{ id: str
                 </div>
                 <UploadForm fixedCourseId={course.id} submitLabel={manager ? "Ajouter" : "Partager"} />
               </Card>
-            )}
-          </Section>
-
-          <Section title={`Enseignants (${teachers.length})`}>
-            <Card className="divide-y divide-line">
-              {teachers.map((t) => (
-                <div key={t.id} className="flex items-center justify-between gap-2 px-4 py-2.5">
-                  <div className="text-sm">
-                    <span className="font-medium">{t.name}</span>
-                    {t.id === course.teacherId && <span className="ml-2 text-xs text-faint">responsable</span>}
-                  </div>
-                  {manager && teachers.length > 1 && (
-                    <form action={removeCourseTeacher}>
-                      <input type="hidden" name="courseId" value={course.id} />
-                      <input type="hidden" name="userId" value={t.id} />
-                      <ConfirmButton message={`Retirer ${t.name} de ce cours ?`}>Retirer</ConfirmButton>
-                    </form>
-                  )}
-                </div>
-              ))}
-            </Card>
-            {manager && colleagues.length > 0 && (
-              <ActionForm action={addCourseTeacher} className="mt-3 flex gap-2">
-                <input type="hidden" name="courseId" value={course.id} />
-                <Select name="userId" required defaultValue="" className="py-1.5">
-                  <option value="" disabled>
-                    Ajouter un enseignant...
-                  </option>
-                  {colleagues.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name}
-                    </option>
-                  ))}
-                </Select>
-                <SubmitButton variant="secondary" className="py-1.5">
-                  Ajouter
-                </SubmitButton>
-              </ActionForm>
             )}
           </Section>
 
