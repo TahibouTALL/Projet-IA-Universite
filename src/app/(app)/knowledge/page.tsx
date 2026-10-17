@@ -1,13 +1,14 @@
+import Link from "next/link";
 import { and, count, eq, inArray } from "drizzle-orm";
+import { CircleAlert, EyeOff, Library, Upload } from "lucide-react";
 import { db, schema } from "@/db";
 import { requireRole, visibleCourses } from "@/lib/access";
+import { plural } from "@/lib/format";
 import { DocList } from "@/components/DocList";
 import { UploadForm } from "@/components/UploadForm";
-import { Card, Empty, PageHeader, Section } from "@/components/ui";
+import { CourseDot, Disclosure, Empty, PageHeader } from "@/components/ui";
 
-// Génération IA et indexation des documents : laisser jusqu'à 60 s (hébergement serverless type Vercel)
 export const maxDuration = 60;
-
 export const metadata = { title: "Base de l'IA" };
 
 export default async function KnowledgePage() {
@@ -30,48 +31,64 @@ export default async function KnowledgePage() {
     : [];
   const indexed = new Map(chunkCounts.map((c) => [c.id, c.n]));
   const unreadable = docs.filter((d) => !indexed.get(d.id));
+  const groups = courses.map((c) => ({ course: c, docs: docs.filter((d) => d.courseId === c.id) })).filter((g) => g.docs.length);
 
   return (
     <>
       <PageHeader
-        title="Base de connaissances de l'IA"
-        subtitle="Documents déposés par les ambassadeurs et les enseignants pour donner du contexte à l'IA. Ils ne sont jamais affichés aux étudiants : l'IA s'en sert pour répondre, expliquer et créer des exercices."
+        title="Base de l'IA"
+        description="Les documents qui servent seulement de contexte à l'assistant : anciens sujets, corrigés, polycopiés déposés par les ambassadeurs et les enseignants."
       />
-      {unreadable.length > 0 && (
-        <Card className="mb-8 border-amber-200 bg-amber-50 p-4 text-sm text-warn">
-          {unreadable.length} document(s) sans texte lisible (scan ou image) : l'IA ne peut pas encore les exploiter. Un PDF avec du texte sélectionnable fonctionne mieux.
-        </Card>
-      )}
-      <div className="grid gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          {courses.filter((c) => docs.some((d) => d.courseId === c.id)).map((c) => (
-            <Section key={c.id} title={`${c.title} (${docs.filter((d) => d.courseId === c.id).length})`}>
-              <Card className="overflow-hidden">
-                <DocList
-                  docs={docs
-                    .filter((d) => d.courseId === c.id)
-                    .map((d) => ({
+
+      <div className="max-w-3xl">
+        <p className="mb-6 flex items-start gap-2.5 rounded-2xl bg-white px-4 py-3 text-sm text-muted ring-1 ring-line">
+          <EyeOff size={17} className="mt-px shrink-0 text-accent" aria-hidden />
+          Les étudiants ne voient jamais ces documents. L'assistant s'en inspire pour répondre au niveau et dans le style de l'école.
+        </p>
+
+        {unreadable.length > 0 && (
+          <p className="mb-6 flex items-start gap-2.5 rounded-2xl border border-warn/25 bg-warn-soft px-4 py-3 text-sm font-semibold text-warn">
+            <CircleAlert size={17} className="mt-px shrink-0" aria-hidden />
+            {plural(unreadable.length, "document")} sans texte lisible (scan ou photo) : l'assistant ne peut pas encore {unreadable.length > 1 ? "les" : "le"} lire. Un PDF dont on peut sélectionner le texte fonctionne mieux.
+          </p>
+        )}
+
+        {courses.length > 0 && (
+          <Disclosure summary="Ajouter un document à la base" hint="Un corrigé ou un sujet à ne pas diffuser" icon={Upload} className="mb-8" open={docs.length === 0}>
+            <UploadForm courses={courses} mode="ai" defaultKind="CORRECTION" submitLabel="Ajouter à la base de l'IA" />
+          </Disclosure>
+        )}
+
+        {groups.length ? (
+          <div className="space-y-8">
+            {groups.map(({ course, docs }) => (
+              <section key={course.id}>
+                <div className="mb-2.5 flex items-baseline justify-between gap-3">
+                  <h2 className="flex min-w-0 items-center gap-2.5 text-[1.0625rem] font-bold">
+                    <CourseDot color={course.color} />
+                    <Link href={`/courses/${course.id}`} className="truncate hover:text-accent">
+                      {course.title}
+                    </Link>
+                  </h2>
+                  <span className="shrink-0 text-sm text-faint">{plural(docs.length, "document")}</span>
+                </div>
+                <div className="overflow-hidden rounded-2xl border border-line bg-white">
+                  <DocList
+                    docs={docs.map((d) => ({
                       ...d,
-                      uploaderName: `${d.uploader.name} · ${indexed.get(d.id) ?? 0} passage(s) indexé(s)`,
+                      uploaderName: d.uploader.name,
+                      extra: indexed.get(d.id) ? plural(indexed.get(d.id)!, "passage lu", "passages lus") : "texte illisible",
                       canDelete: true,
                     }))}
-                />
-              </Card>
-            </Section>
-          ))}
-          {!docs.length && <Empty>La base est vide pour tes cours. Les dépôts des ambassadeurs apparaîtront ici.</Empty>}
-        </div>
-        {courses.length > 0 && (
-          <div>
-            <Section title="Ajouter à la base">
-              <Card className="p-5">
-                <UploadForm courses={courses} mode="ai" defaultKind="CORRECTION" submitLabel="Ajouter à la base de l'IA" />
-              </Card>
-              <p className="mt-3 text-xs text-faint">
-                Utile pour des corrigés ou sujets que tu ne veux pas diffuser aux étudiants mais dont l'IA peut s'inspirer.
-              </p>
-            </Section>
+                  />
+                </div>
+              </section>
+            ))}
           </div>
+        ) : (
+          <Empty icon={Library} title="La base est vide pour tes cours">
+            Les documents déposés par les ambassadeurs apparaîtront ici. Tu peux aussi en ajouter toi-même.
+          </Empty>
         )}
       </div>
     </>

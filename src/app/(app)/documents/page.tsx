@@ -1,16 +1,29 @@
+import Link from "next/link";
 import { and, eq, ilike, inArray, or, type SQL } from "drizzle-orm";
+import { FileSearch, Search, Upload } from "lucide-react";
 import { db, schema } from "@/db";
 import type { DocKind } from "@/db/schema";
 import { canManageCourse, isStudentLike, requireUser, visibleCourses } from "@/lib/access";
 import { DOC_KIND_LABELS } from "@/lib/documents";
+import { plural } from "@/lib/format";
 import { DocList } from "@/components/DocList";
 import { UploadForm } from "@/components/UploadForm";
-import { btn, Card, Empty, Input, PageHeader, Section, Select } from "@/components/ui";
+import { button, CourseDot, Disclosure, Empty, Input, PageHeader, Select, cx } from "@/components/ui";
 
-// Génération IA et indexation des documents : laisser jusqu'à 60 s (hébergement serverless type Vercel)
 export const maxDuration = 60;
-
 export const metadata = { title: "Documents" };
+
+const FILTERS: { key: string; label: string }[] = [
+  { key: "", label: "Tout" },
+  { key: "COURSE", label: "Cours" },
+  { key: "TD", label: "TD" },
+  { key: "TP", label: "TP" },
+  { key: "EXAM", label: "Examens" },
+  { key: "CORRECTION", label: "Corrections" },
+  { key: "HOMEWORK", label: "Devoirs" },
+  { key: "SUMMARY", label: "Fiches" },
+  { key: "OTHER", label: "Autres" },
+];
 
 export default async function DocumentsPage({
   searchParams,
@@ -22,6 +35,7 @@ export default async function DocumentsPage({
   const courses = await visibleCourses(user);
   const courseIds = courses.map((c) => c.id);
   const manageable = new Set(courses.filter((c) => canManageCourse(user, c)).map((c) => c.id));
+  const learner = isStudentLike(user);
 
   const filters: (SQL | undefined)[] = [
     courseIds.length ? inArray(schema.documents.courseId, courseIds) : eq(schema.documents.id, "__none__"),
@@ -42,71 +56,122 @@ export default async function DocumentsPage({
     limit: 300,
   });
 
-  const byCourse = courses
-    .map((c) => ({ course: c, docs: docs.filter((d) => d.courseId === c.id) }))
-    .filter((g) => g.docs.length);
+  const byCourse = courses.map((c) => ({ course: c, docs: docs.filter((d) => d.courseId === c.id) })).filter((g) => g.docs.length);
+  const filtered = !!(sp.q?.trim() || sp.course || sp.kind);
+  const hrefWith = (kind: string) => {
+    const p = new URLSearchParams();
+    if (sp.q) p.set("q", sp.q);
+    if (sp.course) p.set("course", sp.course);
+    if (kind) p.set("kind", kind);
+    const s = p.toString();
+    return s ? `/documents?${s}` : "/documents";
+  };
 
   return (
     <>
-      <PageHeader title="Documents" subtitle="Tous les supports de tes cours, classés par matière." />
+      <PageHeader
+        title="Documents"
+        description={learner ? "Tous les supports de tes cours, rangés par matière." : "Les documents de tes cours, rangés par matière."}
+      />
 
-      <div className="grid gap-8 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <form className="mb-6 flex flex-wrap gap-2">
-            <Input name="q" defaultValue={sp.q} placeholder="Rechercher un document..." className="min-w-48 flex-1" />
-            <Select name="course" defaultValue={sp.course ?? ""} className="w-auto">
-              <option value="">Tous les cours</option>
-              {courses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.title}
-                </option>
-              ))}
-            </Select>
-            <Select name="kind" defaultValue={sp.kind ?? ""} className="w-auto">
-              <option value="">Tous les types</option>
-              {Object.entries(DOC_KIND_LABELS).map(([k, l]) => (
-                <option key={k} value={k}>
-                  {l}
-                </option>
-              ))}
-            </Select>
-            <button className={btn.secondary}>Filtrer</button>
-          </form>
-
-          {byCourse.length ? (
-            byCourse.map(({ course, docs }) => (
-              <Section key={course.id} title={course.title}>
-                <Card className="overflow-hidden">
-                  <DocList
-                    docs={docs.map((d) => ({
-                      ...d,
-                      uploaderName: d.uploader.name,
-                      canDelete: d.uploaderId === user.id || manageable.has(course.id),
-                    }))}
-                  />
-                </Card>
-              </Section>
-            ))
-          ) : (
-            <Empty>Aucun document ne correspond.</Empty>
+      {courses.length > 0 && (
+        <Disclosure
+          summary={learner ? "Partager un document avec ma classe" : "Ajouter un document"}
+          hint={learner ? "Une fiche, des notes, un TD corrigé..." : undefined}
+          icon={Upload}
+          className="mb-6"
+        >
+          <UploadForm courses={courses} submitLabel={learner ? "Partager" : "Ajouter"} defaultKind={learner ? "SUMMARY" : "COURSE"} />
+          {user.role === "AMBASSADOR" && (
+            <p className="mt-4 text-sm text-muted">
+              Un sujet d'examen ou une correction qui doit seulement servir à l'IA ? Dépose-le dans{" "}
+              <Link href="/ambassador" className="font-bold text-accent underline">
+                l'espace ambassadeur
+              </Link>
+              .
+            </p>
           )}
-        </div>
+        </Disclosure>
+      )}
 
-        {courses.length > 0 && (
-          <div>
-            <Section title={isStudentLike(user) ? "Partager avec ma classe" : "Ajouter un document"}>
-              <Card className="p-5">
-                <UploadForm courses={courses} submitLabel={isStudentLike(user) ? "Partager" : "Ajouter"} />
-              </Card>
-              {user.role === "AMBASSADOR" && (
-                <p className="mt-3 text-sm text-muted">
-                  Pour un sujet d'examen ou une correction qui doit seulement servir à l'IA, passe par l'espace ambassadeur.
-                </p>
+      <form className="mb-3 flex flex-col gap-2 sm:flex-row">
+        {sp.kind && <input type="hidden" name="kind" value={sp.kind} />}
+        <div className="relative flex-1">
+          <Search size={17} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-faint" aria-hidden />
+          <Input name="q" defaultValue={sp.q} placeholder="Rechercher un document" className="pl-9" aria-label="Rechercher un document" />
+        </div>
+        <div className="flex gap-2">
+          <Select name="course" defaultValue={sp.course ?? ""} className="min-w-0 flex-1 sm:w-60 sm:flex-none" aria-label="Cours">
+            <option value="">Tous les cours</option>
+            {courses.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.title}
+              </option>
+            ))}
+          </Select>
+          <button className={button("secondary") + " h-11 sm:h-10"}>Rechercher</button>
+        </div>
+      </form>
+
+      <nav aria-label="Type de document" className="-mx-4 mb-8 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">
+        {FILTERS.map((f) => {
+          const on = (sp.kind ?? "") === f.key;
+          return (
+            <Link
+              key={f.key}
+              href={hrefWith(f.key)}
+              aria-current={on ? "true" : undefined}
+              className={cx(
+                "inline-flex h-9 shrink-0 items-center rounded-full border px-3.5 text-sm font-semibold transition-colors",
+                on ? "border-accent bg-accent-soft text-accent-strong" : "border-line-strong bg-white text-muted hover:text-ink",
               )}
-            </Section>
-          </div>
-        )}
-      </div>
+            >
+              {f.label}
+            </Link>
+          );
+        })}
+      </nav>
+
+      {byCourse.length ? (
+        <div className="space-y-8">
+          {byCourse.map(({ course, docs }) => (
+            <section key={course.id}>
+              <div className="mb-2.5 flex items-baseline justify-between gap-3">
+                <h2 className="flex min-w-0 items-center gap-2.5 text-[1.0625rem] font-bold">
+                  <CourseDot color={course.color} />
+                  <Link href={`/courses/${course.id}`} className="truncate hover:text-accent">
+                    {course.title}
+                  </Link>
+                </h2>
+                <span className="shrink-0 text-sm text-faint">{plural(docs.length, "document")}</span>
+              </div>
+              <div className="overflow-hidden rounded-2xl border border-line bg-white">
+                <DocList
+                  docs={docs.map((d) => ({
+                    ...d,
+                    uploaderName: d.uploader.name,
+                    canDelete: d.uploaderId === user.id || manageable.has(course.id),
+                  }))}
+                />
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <Empty
+          icon={FileSearch}
+          title={filtered ? "Aucun document ne correspond" : "Pas encore de document"}
+          action={
+            filtered ? (
+              <Link href="/documents" className={button("secondary", "sm")}>
+                Effacer la recherche
+              </Link>
+            ) : undefined
+          }
+        >
+          {filtered ? "Essaie un autre mot ou un autre type de document." : "Les documents déposés dans tes cours apparaîtront ici."}
+        </Empty>
+      )}
     </>
   );
 }

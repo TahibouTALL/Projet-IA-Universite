@@ -2,8 +2,8 @@
 import PptxGenJS from "pptxgenjs";
 import type { Deck } from "./generate";
 
-const ACCENT = "0F766E";
-const INK = "1C1917";
+const ACCENT = "1D6A55";
+const INK = "1A2421";
 
 export async function deckToPptx(deck: Deck, appName: string): Promise<Buffer> {
   const pptx = new PptxGenJS();

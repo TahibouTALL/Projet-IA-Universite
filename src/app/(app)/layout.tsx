@@ -13,16 +13,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     : null;
 
   const nav: NavItem[] = [
-    { href: "/dashboard", label: "Tableau de bord", short: "Accueil" },
-    { href: "/courses", label: user.role === "ADMIN" ? "Cours" : "Mes cours", short: "Cours" },
-    { href: "/documents", label: "Documents" },
-    { href: "/schedule", label: "Emploi du temps", short: "Horaires" },
-    { href: "/announcements", label: "Annonces" },
-    { href: "/ai", label: "Assistant IA", short: "IA" },
+    { href: "/dashboard", label: "Accueil", icon: "home" },
+    { href: "/courses", label: user.role === "ADMIN" ? "Cours" : "Mes cours", short: "Cours", icon: "courses" },
+    { href: "/documents", label: "Documents", icon: "documents" },
+    { href: "/schedule", label: "Emploi du temps", icon: "schedule" },
+    { href: "/announcements", label: "Annonces", icon: "announcements" },
+    { href: "/ai", label: "Assistant IA", short: "IA", icon: "ai" },
   ];
-  if (user.role === "AMBASSADOR") nav.push({ href: "/ambassador", label: "Espace ambassadeur" });
-  if (user.role === "ADMIN" || user.role === "TEACHER") nav.push({ href: "/knowledge", label: "Base de l'IA" });
-  if (user.role === "ADMIN") nav.push({ href: "/admin", label: "Administration" });
+  if (user.role === "AMBASSADOR") nav.push({ href: "/ambassador", label: "Espace ambassadeur", icon: "ambassador", group: "Contribuer" });
+  if (user.role === "ADMIN" || user.role === "TEACHER") nav.push({ href: "/knowledge", label: "Base de l'IA", icon: "knowledge", group: "Gestion" });
+  if (user.role === "ADMIN") nav.push({ href: "/admin", label: "Administration", icon: "admin", group: "Gestion" });
 
   return (
     <Shell appName={APP_NAME} nav={nav} user={{ name: user.name, roleLabel: ROLE_LABELS[user.role], classLabel: cls?.name }}>
