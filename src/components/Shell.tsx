@@ -122,7 +122,11 @@ export function Shell({
         Mon compte
       </Link>
       <button
-        onClick={() => signOut({ callbackUrl: "/login" })}
+        onClick={async () => {
+          // Retour à la connexion sur l'adresse en cours (utile pour les préversions et un futur nom de domaine)
+          await signOut({ redirect: false });
+          window.location.assign("/login");
+        }}
         className="flex h-9 items-center gap-2.5 rounded-lg px-2 text-left text-sm font-semibold text-muted hover:bg-ink/[0.04] hover:text-ink"
       >
         <LogOut size={16} aria-hidden />
