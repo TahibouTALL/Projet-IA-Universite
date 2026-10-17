@@ -1,6 +1,7 @@
 // Fonctions IA de haut niveau, utilisées par les pages et les actions serveur
 import { complete, parseJson, type AiMessage } from "./provider";
 import type { ChunkHit } from "../search";
+import { shorten } from "../format";
 
 const BASE_STYLE = `Tu écris en français clair, pour des étudiants d'un établissement d'enseignement supérieur au Sénégal.
 Tu utilises Markdown (titres ##, listes, tableaux si utile) et LaTeX entre $...$ ou $$...$$ pour les formules.
@@ -123,5 +124,5 @@ export async function chatTitle(firstMessage: string) {
     system: "Donne un titre de 3 à 6 mots, en français, sans guillemets ni ponctuation finale, pour cette question d'étudiant.",
     messages: [{ role: "user", content: firstMessage }],
   });
-  return t.replace(/["«»\n]/g, "").trim().slice(0, 60) || "Nouvelle discussion";
+  return shorten(t.replace(/["«»\n]/g, "")) || "Nouvelle discussion";
 }

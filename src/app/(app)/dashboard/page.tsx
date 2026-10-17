@@ -131,8 +131,8 @@ export default async function Dashboard() {
                       const due = dueLabel(a.dueDate!);
                       return (
                         <li key={a.id}>
-                          <Link href={`/courses/${a.course.id}#${a.id}`} className="flex items-center gap-3 px-4 py-3.5 hover:bg-paper/60 sm:px-5">
-                            <CourseDot color={a.course.color} />
+                          <Link href={`/courses/${a.course.id}#${a.id}`} className="flex items-start gap-3 px-4 py-3.5 hover:bg-paper/60 sm:items-center sm:px-5">
+                            <CourseDot color={a.course.color} className="mt-2 sm:mt-0" />
                             <span className="min-w-0 flex-1">
                               <span className="block truncate font-bold text-ink">{a.title}</span>
                               <span className="block truncate text-[13px] text-muted">{a.course.title}</span>
@@ -140,9 +140,9 @@ export default async function Dashboard() {
                                 {due.text}
                               </Badge>
                             </span>
-                            <Badge tone={due.tone} className="hidden sm:inline-flex">
-                              {due.text}
-                            </Badge>
+                            <span className="hidden shrink-0 sm:block">
+                              <Badge tone={due.tone}>{due.text}</Badge>
+                            </span>
                           </Link>
                         </li>
                       );

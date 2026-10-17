@@ -19,6 +19,7 @@ import { deckToPptx } from "@/lib/ai/pptx";
 import { searchChunks } from "@/lib/search";
 import { saveFile } from "@/lib/storage";
 import { APP_NAME } from "@/lib/appname";
+import { shorten } from "@/lib/format";
 import type { ActionResult } from "@/components/forms";
 
 /** Restreint la recherche au cours choisi (s'il est accessible), sinon à tous les cours visibles. */
@@ -60,7 +61,7 @@ export async function sendChatMessage(input: {
   if (!session) {
     const [created] = await db
       .insert(schema.chatSessions)
-      .values({ userId: user.id, courseId: scope.courseId, title: content.slice(0, 60) })
+      .values({ userId: user.id, courseId: scope.courseId, title: shorten(content) })
       .returning();
     session = { ...created, course: null };
   }
@@ -88,7 +89,7 @@ export async function sendChatMessage(input: {
       .returning();
 
     const isFirst = history.length === 1;
-    const title = isFirst ? await chatTitle(content).catch(() => content.slice(0, 60)) : undefined;
+    const title = isFirst ? await chatTitle(content).catch(() => shorten(content)) : undefined;
     await db
       .update(schema.chatSessions)
       .set({ updatedAt: new Date(), ...(title ? { title } : {}) })

@@ -105,6 +105,15 @@ export function formatSize(bytes: number) {
   return `${(bytes / 1048576).toFixed(1).replace(".", ",")} Mo`;
 }
 
+/** Raccourcit un texte sans couper de mot, avec "…" si besoin. */
+export function shorten(text: string, max = 60) {
+  const t = text.replace(/\s+/g, " ").trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max - 1);
+  const at = cut.lastIndexOf(" ");
+  return (at > max / 2 ? cut.slice(0, at) : cut).replace(/[\s,;:.!?'-]+$/, "") + "…";
+}
+
 export function plural(n: number, one: string, many = `${one}s`) {
   return `${n} ${n > 1 ? many : one}`;
 }

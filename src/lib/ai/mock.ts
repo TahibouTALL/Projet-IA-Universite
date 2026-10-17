@@ -1,4 +1,5 @@
 // Réponses simulées, pour tester la plateforme sans clé API (AI_PROVIDER=mock)
+import { shorten } from "@/lib/format";
 import type { CompletionRequest } from "./provider";
 
 const NOTE = "> Réponse simulée : aucun fournisseur IA n'est configuré (AI_PROVIDER=mock).";
@@ -13,7 +14,7 @@ export async function mockCompletion(req: CompletionRequest): Promise<string> {
   const topic = topicOf(req);
   switch (req.task) {
     case "title":
-      return topic.slice(0, 50);
+      return shorten(topic, 50);
     case "course":
       return `${NOTE}
 
