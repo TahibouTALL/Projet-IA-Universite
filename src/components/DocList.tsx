@@ -30,7 +30,7 @@ export function DocList({ docs, showCourse = false }: { docs: DocRow[]; showCour
   return (
     <ul className="divide-y divide-line">
       {docs.map((d) => (
-        <li key={d.id} className="flex items-center gap-3 px-4 py-3">
+        <li key={d.id} className="flex items-start gap-3 px-4 py-3">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-[10px] font-semibold uppercase text-muted">
             {d.fileName.split(".").pop()?.slice(0, 4)}
           </div>
@@ -38,23 +38,40 @@ export function DocList({ docs, showCourse = false }: { docs: DocRow[]; showCour
             <a href={`/api/files/${d.id}`} target="_blank" className="block truncate font-medium hover:text-accent">
               {d.title}
             </a>
-            <div className="truncate text-xs text-muted">
+            <div className="text-xs text-muted sm:truncate">
               {[showCourse && d.courseTitle, SOURCE_LABEL[d.source], d.uploaderName, formatDate(d.createdAt), formatSize(d.size)]
                 .filter(Boolean)
                 .join(" · ")}
             </div>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 sm:hidden">
+              <Badge tone={d.kind === "CORRECTION" || d.kind === "EXAM" ? "accent" : "neutral"}>{DOC_KIND_LABELS[d.kind]}</Badge>
+              {d.aiOnly && <Badge tone="accent">Base IA</Badge>}
+              <a href={`/api/files/${d.id}?download`} className="text-xs text-muted">
+                Télécharger
+              </a>
+              {d.canDelete && (
+                <form action={deleteDocument}>
+                  <input type="hidden" name="documentId" value={d.id} />
+                  <ConfirmButton message="Supprimer ce document ?" className="text-xs text-danger">
+                    Supprimer
+                  </ConfirmButton>
+                </form>
+              )}
+            </div>
           </div>
-          <Badge tone={d.kind === "CORRECTION" || d.kind === "EXAM" ? "accent" : "neutral"}>{DOC_KIND_LABELS[d.kind]}</Badge>
-          {d.aiOnly && <Badge tone="accent">Base IA</Badge>}
-          <a href={`/api/files/${d.id}?download`} className="hidden text-xs text-muted hover:text-ink sm:inline">
-            Télécharger
-          </a>
-          {d.canDelete && (
-            <form action={deleteDocument}>
-              <input type="hidden" name="documentId" value={d.id} />
-              <ConfirmButton message="Supprimer ce document ?">Supprimer</ConfirmButton>
-            </form>
-          )}
+          <div className="hidden shrink-0 items-center gap-3 self-center sm:flex">
+            <Badge tone={d.kind === "CORRECTION" || d.kind === "EXAM" ? "accent" : "neutral"}>{DOC_KIND_LABELS[d.kind]}</Badge>
+            {d.aiOnly && <Badge tone="accent">Base IA</Badge>}
+            <a href={`/api/files/${d.id}?download`} className="text-xs text-muted hover:text-ink">
+              Télécharger
+            </a>
+            {d.canDelete && (
+              <form action={deleteDocument}>
+                <input type="hidden" name="documentId" value={d.id} />
+                <ConfirmButton message="Supprimer ce document ?">Supprimer</ConfirmButton>
+              </form>
+            )}
+          </div>
         </li>
       ))}
     </ul>

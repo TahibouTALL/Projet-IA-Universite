@@ -141,8 +141,8 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
           <Section title="Importer un fichier CSV">
             <Card className="p-5">
               <p className="mb-3 text-sm text-muted">
-                Une ligne par créneau : <code className="rounded bg-stone-100 px-1">jour;début;fin;intitulé;salle;enseignant</code>.
-                Exemple : <code className="rounded bg-stone-100 px-1">Lundi;08:00;10:00;Résistance des matériaux;Amphi A;Awa Diop</code>.
+                Une ligne par créneau : <code className="break-all rounded bg-stone-100 px-1">jour;début;fin;intitulé;salle;enseignant</code>.
+                Exemple : <code className="break-all rounded bg-stone-100 px-1">Lundi;08:00;10:00;Résistance des matériaux;Amphi A;Awa Diop</code>.
                 L'intitulé est relié au cours s'il correspond à son titre ou à son code. Un export Excel en CSV convient.
               </p>
               <ActionForm action={importSchedule} className="space-y-3">

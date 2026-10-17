@@ -95,7 +95,7 @@ export function Chat({ sessionId, courseId, initial }: { sessionId: string | nul
           e.preventDefault();
           send(text);
         }}
-        className="sticky bottom-0 flex gap-2 border-t border-line bg-paper py-4"
+        className="sticky bottom-14 flex gap-2 border-t border-line bg-paper py-3 lg:bottom-0 lg:py-4"
       >
         <textarea
           value={text}
@@ -107,8 +107,8 @@ export function Chat({ sessionId, courseId, initial }: { sessionId: string | nul
             }
           }}
           rows={2}
-          placeholder="Écris ta question... (Entrée pour envoyer, Maj+Entrée pour aller à la ligne)"
-          className="flex-1 resize-none rounded-xl border border-line bg-white px-4 py-3 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
+          placeholder="Écris ta question..."
+          className="min-w-0 flex-1 resize-none rounded-xl border border-line bg-white px-4 py-3 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft"
         />
         <button type="submit" disabled={pending || !text.trim()} className={cx(btn.primary, "self-end")}>
           Envoyer

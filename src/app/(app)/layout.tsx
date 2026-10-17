@@ -13,12 +13,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     : null;
 
   const nav: NavItem[] = [
-    { href: "/dashboard", label: "Tableau de bord" },
-    { href: "/courses", label: user.role === "ADMIN" ? "Cours" : "Mes cours" },
+    { href: "/dashboard", label: "Tableau de bord", short: "Accueil" },
+    { href: "/courses", label: user.role === "ADMIN" ? "Cours" : "Mes cours", short: "Cours" },
     { href: "/documents", label: "Documents" },
-    { href: "/schedule", label: "Emploi du temps" },
+    { href: "/schedule", label: "Emploi du temps", short: "Horaires" },
     { href: "/announcements", label: "Annonces" },
-    { href: "/ai", label: "Assistant IA" },
+    { href: "/ai", label: "Assistant IA", short: "IA" },
   ];
   if (user.role === "AMBASSADOR") nav.push({ href: "/ambassador", label: "Espace ambassadeur" });
   if (user.role === "ADMIN" || user.role === "TEACHER") nav.push({ href: "/knowledge", label: "Base de l'IA" });

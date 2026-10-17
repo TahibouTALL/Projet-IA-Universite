@@ -48,7 +48,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             title={`Utilisateurs (${users.length})`}
             aside={
               <form className="flex gap-2">
-                <Input name="q" defaultValue={q} placeholder="Rechercher..." className="w-48 py-1.5" />
+                <Input name="q" defaultValue={q} placeholder="Rechercher..." className="w-36 py-1.5 sm:w-48" />
               </form>
             }
           >
@@ -59,9 +59,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                     <div className="font-medium">{u.name}</div>
                     <div className="text-xs text-muted">{u.email}</div>
                   </div>
-                  <form action={updateUser} className="flex flex-wrap items-center gap-2">
+                  <form action={updateUser} className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
                     <input type="hidden" name="id" value={u.id} />
-                    <Select name="role" defaultValue={u.role} className="w-auto py-1.5" disabled={u.id === admin.id}>
+                    <Select name="role" defaultValue={u.role} className="py-1.5 sm:w-auto" disabled={u.id === admin.id}>
                       {Object.entries(ROLE_LABELS).map(([r, l]) => (
                         <option key={r} value={r}>
                           {l}
@@ -69,7 +69,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                       ))}
                     </Select>
                     {u.id === admin.id && <input type="hidden" name="role" value="ADMIN" />}
-                    <Select name="classGroupId" defaultValue={u.classGroupId ?? ""} className="w-auto py-1.5">
+                    <Select name="classGroupId" defaultValue={u.classGroupId ?? ""} className="py-1.5 sm:w-auto">
                       <option value="">Sans classe</option>
                       {classes.map((c) => (
                         <option key={c.id} value={c.id}>
